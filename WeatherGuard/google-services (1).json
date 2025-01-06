@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "629257255711",
+    "project_id": "weatherguard2-4d843",
+    "storage_bucket": "weatherguard2-4d843.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:629257255711:android:39a751b7c24a8ec0094e2a",
+        "android_client_info": {
+          "package_name": "com.weatherguard.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqyJVIT-YO6Hbuokp1RCSlL233E6Ki3Io"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
