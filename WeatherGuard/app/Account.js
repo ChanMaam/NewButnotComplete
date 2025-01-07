@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,28 +8,29 @@ import {
   ScrollView,
   TextInput,
   Alert,
-} from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import { doc, setDoc, getDoc, deleteDoc } from "firebase/firestore";
-import { auth, db } from "./firebaseConfig";
+} from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import {
+  doc,
+  setDoc,
+  getDoc,
+  deleteDoc,
+} from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { auth, db, storage } from "./firebaseConfig";
 
 const Account = ({ navigation }) => {
-  const [profileImage, setProfileImage] = useState('https://via.placeholder.com/80');
+  const [profileImage, setProfileImage] = useState(
+    "default_avatar.png"
+  );
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [birthdate, setBirthdate] = useState('');
+  const [name, setName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [birthdate, setBirthdate] = useState("");
 
   useEffect(() => {
-    const loadProfileImage = async () => {
-      const savedImage = await AsyncStorage.getItem('profileImage');
-      if (savedImage) {
-        setProfileImage(savedImage);
-      }
-    };
-
     const loadUserData = async () => {
       const user = auth.currentUser;
       if (user) {
@@ -41,60 +42,118 @@ const Account = ({ navigation }) => {
             setName(userData.name || "Add User");
             setPhoneNumber(userData.phoneNumber || "Add Phone Number");
             setBirthdate(userData.birthdate || "Add Birthdate");
+            setProfileImage(userData.profileImageURL || "default_avatar.png");
           } else {
-            setName("Add Username");
-            setPhoneNumber("Add Phone Number");
-            setBirthdate("Add Birthdate");
+            console.log("No such document!");
           }
         } catch (error) {
-          console.error("Error loading user data:", error);
+          console.error("Error fetching user data:", error);
         }
       }
     };
+    
 
-    loadProfileImage();
     loadUserData();
   }, []);
-
   const handleImagePick = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      const selectedImageUri = result.assets[0].uri;
-      setProfileImage(selectedImageUri);
-      await AsyncStorage.setItem('profileImage', selectedImageUri);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+  
+      if (!result.canceled) {
+        const selectedImageUri = result.assets[0].uri;
+  
+        // Upload the image and get the download URL
+        const uploadedUrl = await uploadImageToFirebase(selectedImageUri);
+        setProfileImage(uploadedUrl);
+  
+        const user = auth.currentUser;
+        if (user) {
+          const uid = user.uid;
+  
+          // Save the image URL to Firestore
+          await setDoc(
+            doc(db, "users", uid), // Firestore document reference
+            { profileImageURL: uploadedUrl }, // Field to add
+            { merge: true } // Merge with existing fields
+          );
+  
+          Alert.alert("Success", "Profile image updated successfully!");
+        }
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      Alert.alert("Error", "Failed to pick or upload image.");
+    }
+  };
+  
+  
+  const uploadImageToFirebase = async (imageUri) => {
+    try {
+      const response = await fetch(imageUri);
+      if (!response.ok) {
+        throw new Error("Failed to fetch the image URI.");
+      }
+      const blob = await response.blob();
+  
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("No user is logged in.");
+      }
+  
+      const storageRef = ref(storage, `avatars/${user.uid}`);
+      await uploadBytes(storageRef, blob);
+  
+      const downloadURL = await getDownloadURL(storageRef);
+      return downloadURL;
+    } catch (error) {
+      console.error("Error uploading image to Firebase:", error);
+      throw error;
     }
   };
 
   const handleSaveChanges = async () => {
-    setIsEditing(false);
-
-    const user = auth.currentUser;
-    if (user) {
+    if (!auth.currentUser) {
+      Alert.alert("Error", "No user is logged in.");
+      return;
+    }
+  
+    try {
+      const user = auth.currentUser;
       const uid = user.uid;
-      try {
-        const userDoc = doc(db, "users", uid);
-        await setDoc(userDoc, {
+  
+      let uploadedUrl = profileImage;
+  
+      // If the profileImage is a local URI, upload it to Firebase Storage
+      if (profileImage.startsWith("file://") || profileImage.startsWith("content://")) {
+        uploadedUrl = await uploadImageToFirebase(profileImage);
+      }
+  
+      // Save user details and the uploaded image URL to Firestore
+      await setDoc(
+        doc(db, "users", uid),
+        {
           name: name || "Add User",
           phoneNumber: phoneNumber || "Add Phone Number",
           birthdate: birthdate || "Add Birthdate",
-        });
-
-        Alert.alert("Success", "Data saved successfully!");
-      } catch (error) {
-        console.error("Error saving data:", error);
-        Alert.alert("Error", "Failed to save data. Please try again.");
-      }
-    } else {
-      Alert.alert("Error", "No user logged in.");
+          profileImageURL: uploadedUrl,
+        },
+        { merge: true }
+      );
+  
+      setProfileImage(uploadedUrl); // Update the local state with the uploaded image URL
+      setIsEditing(false);
+      Alert.alert("Success", "Profile updated successfully!");
+    } catch (error) {
+      console.error("Error saving changes:", error);
+      Alert.alert("Error", "Failed to save changes. Please try again.");
     }
   };
-
+  
   const handleDeleteAccount = async () => {
     const user = auth.currentUser;
 
@@ -111,18 +170,18 @@ const Account = ({ navigation }) => {
             style: "destructive",
             onPress: async () => {
               try {
-                // Delete user data from Firestore
                 const userDoc = doc(db, "users", uid);
                 await deleteDoc(userDoc);
-
-                // Delete user account from Firebase Auth
                 await user.delete();
 
                 Alert.alert("Success", "Account deleted successfully!");
-                navigation.navigate("Login"); // Redirect to Login screen
+                navigation.navigate("Login");
               } catch (error) {
                 console.error("Error deleting account:", error);
-                Alert.alert("Error", "Failed to delete account. Please try again.");
+                Alert.alert(
+                  "Error",
+                  "Failed to delete account. Please try again."
+                );
               }
             },
           },
@@ -164,7 +223,7 @@ const Account = ({ navigation }) => {
                 autoFocus
               />
             ) : (
-              <Text style={styles.buttonText}>{name || 'Add User'}</Text>
+              <Text style={styles.buttonText}>{name || "Add User"}</Text>
             )}
           </View>
         </View>
@@ -180,7 +239,9 @@ const Account = ({ navigation }) => {
                 placeholder="Enter phone number"
               />
             ) : (
-              <Text style={styles.buttonText}>{phoneNumber || 'Add Phone Number'}</Text>
+              <Text style={styles.buttonText}>
+                {phoneNumber || "Add Phone Number"}
+              </Text>
             )}
           </View>
         </View>
@@ -196,13 +257,18 @@ const Account = ({ navigation }) => {
                 placeholder="YYYY-MM-DD"
               />
             ) : (
-              <Text style={styles.buttonText}>{birthdate || 'Add Birthdate'}</Text>
+              <Text style={styles.buttonText}>
+                {birthdate || "Add Birthdate"}
+              </Text>
             )}
           </View>
         </View>
 
         {!isEditing && (
-          <TouchableOpacity style={styles.editDetailsButton} onPress={handleEditAll}>
+          <TouchableOpacity
+            style={styles.editDetailsButton}
+            onPress={handleEditAll}
+          >
             <View style={styles.editDetailsRow}>
               <Ionicons name="create-outline" size={20} color="#fff" />
               <Text style={styles.editDetailsText}>Edit Personal Details</Text>
@@ -211,12 +277,18 @@ const Account = ({ navigation }) => {
         )}
 
         {isEditing && (
-          <TouchableOpacity style={styles.saveChangesButton} onPress={handleSaveChanges}>
+          <TouchableOpacity
+            style={styles.saveChangesButton}
+            onPress={handleSaveChanges}
+          >
             <Text style={styles.saveChangesText}>Save Changes</Text>
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={handleDeleteAccount}
+        >
           <Text style={styles.deleteButtonText}>Delete Account</Text>
         </TouchableOpacity>
       </ScrollView>
