@@ -1,36 +1,23 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from '@react-navigation/native'; // Added for handling focus effect
+import { Ionicons } from '@expo/vector-icons';  // Import Ionicons
 
 const SideMenu = ({ navigation }) => {
-  const [profileImage, setProfileImage] = useState(null);
-  const [username, setUsername] = useState('Username'); // Default name
+  const [size] = useState(200);
 
-  useFocusEffect(
-    useCallback(() => {
-      const loadProfileData = async () => {
-        try {
-          const savedImage = await AsyncStorage.getItem('profileImage');
-          const savedUsername = await AsyncStorage.getItem('username');
-
-          setProfileImage(savedImage || 'https://via.placeholder.com/80'); // Default placeholder if no image
-          setUsername(savedUsername || 'Username'); // Default if no username
-        } catch (error) {
-          console.error('Error loading profile data:', error);
-        }
-      };
-
-      loadProfileData();
-    }, [])
-  );
+  const handleLogout = () => {
+    // Implement the logout logic here
+    navigation.navigate('Auth', { screen: 'Opening' });  // Assuming this is the login screen
+  };
 
   return (
     <View style={styles.container}>
-      {/* Profile Image */}
-      <View style={styles.profileContainer}>
-        <Image source={{ uri: profileImage }} style={styles.profileImage} />
-        <Text style={styles.profileName}>{username}</Text>
+      {/* Logo Image */}
+      <View style={styles.imageContainer}>
+        <Image
+          source={require('../assets/images/logo.png')}
+          style={styles.image}
+        />
       </View>
 
       {/* Menu Items */}
@@ -54,6 +41,11 @@ const SideMenu = ({ navigation }) => {
       >
         <Text style={styles.menuText}>Logout</Text>
       </TouchableOpacity>
+
+      {/* Logout Icon Button */}
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <Ionicons name="log-out-outline" size={30} color="#FFF" />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -63,22 +55,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#091A3F',
     padding: 20,
+    justifyContent: 'flex-start', // Ensure the container allows space for content
   },
-  profileContainer: {
+  imageContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginTop: 60,
   },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 100,
-    marginBottom: 10,
-    marginTop: 100,
-  },
-  profileName: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+  image: {
+    width: 200,
+    height: 200,
   },
   menuItem: {
     paddingVertical: 15,
@@ -88,6 +73,15 @@ const styles = StyleSheet.create({
   menuText: {
     color: '#FFF',
     fontSize: 16,
+  },
+  logoutButton: {
+    position: 'absolute',
+    bottom: 20,  
+    left: 20,    
+    borderRadius: 50,  
+    padding: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

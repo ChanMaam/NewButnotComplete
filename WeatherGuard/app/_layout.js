@@ -155,14 +155,13 @@ const SettingsStack = () => (
   </Stack.Navigator>
 );
 
-
 // Root Drawer Navigator
 const RootLayout = () => (
   <Drawer.Navigator
     initialRouteName="Auth"
     drawerContent={(props) => <SideMenu {...props} />}
     screenOptions={{
-      drawerStyle: { backgroundColor: 'rgba(9, 26, 63, 0.8)' },
+      drawerStyle: { backgroundColor: 'rgba(9, 26, 63, 0.😎' },
       drawerPosition: 'right',
       headerShown: false,
     }}
